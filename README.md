@@ -27,3 +27,18 @@ rounds = 600_000 # optional, rounds in password hashing
 ```
 
 And then run `mdbook build` to encrypt the site.
+
+### HTML Configuration
+
+HTML renderer options can also be specified under `[output.pagecrypt]`:
+
+```toml
+[output.pagecrypt]
+password = "secret"
+default-theme = "ayu"
+
+[output.pagecrypt.fold]
+enable = true
+```
+
+See the [documentation](https://wybxc.github.io/mdbook-pagecrypt/) for more details.

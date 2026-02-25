@@ -23,6 +23,23 @@ And then run `mdbook build` to encrypt the site.
 - `password`: The password to encrypt the site with. **Required.**
 - `rounds`: The number of rounds to use for password hashing. Default is 600_000. Bigger numbers are safer but slower.
 
+### HTML Configuration
+
+You can also configure HTML rendering options under `[output.pagecrypt]`. Any option valid for `[output.html]` can be used:
+
+```toml
+[output.pagecrypt]
+password = "secret"
+default-theme = "ayu"
+preferred-dark-theme = "ayu"
+
+[output.pagecrypt.fold]
+enable = true
+level = 1
+```
+
+See the [mdBook documentation](https://rust-lang.github.io/mdBook/format/configuration/renderers.html#html-renderer-options) for all available HTML options.
+
 ## Security
 
 The encryption is powered by AES symmetric encryption and salted password hashing. It is hard to crack using brute force.
