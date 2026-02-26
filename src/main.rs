@@ -43,11 +43,32 @@ fn main() -> Result<()> {
         anyhow::bail!("password is required in [{}]", OUTPUT_PAGECRYPT);
     }
 
+    // Check for conflicting HTML config: if pagecrypt has HTML options,
+    // [output.html] should not exist in book.toml
+    let pagecrypt_has_html_config = if let Value::Object(ref map) = cfg_value {
+        map.keys().any(|k| k != "password" && k != "rounds")
+    } else {
+        false
+    };
+
+    if pagecrypt_has_html_config {
+        let book_toml_path = ctx.root.join("book.toml");
+        if let Ok(content) = fs::read_to_string(&book_toml_path) {
+            // Check for [output.html] section in book.toml
+            if content.contains("[output.html]") {
+                anyhow::bail!(
+                    "[output.html] section found in book.toml. \
+                     Remove it and place HTML options under [output.pagecrypt] instead."
+                );
+            }
+        }
+    }
+
     copy_html_config(&mut ctx)?;
 
     let no_html_extension: bool = ctx
         .config
-        .get("output.html.no-html-extension")?
+        .get("output.pagecrypt.no-html-extension")?
         .unwrap_or(false);
 
     let pagecrypt = PageCrypt::builder()
