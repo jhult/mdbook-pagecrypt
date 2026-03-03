@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html>
 
 <head>
@@ -14,12 +14,12 @@
         This page requires JavaScript.
     </noscript>
 
-    <dialog open>
+    <dialog id="dialog">
         <article>
             <header>
                 <p><strong id="msg">🗝️ This page is password protected.</strong></p>
             </header>
-            <form id="form" onsubmit="event.preventDefault(); decrypt();">
+            <form id="form">
                 <fieldset role="group">
                     <input type="password" id="pwd" name="pwd" aria-label="Password" placeholder="Password" autofocus />
                     <input type="submit" id="submit" value="Submit" />
@@ -31,16 +31,32 @@
 
     <pre id="payload" data-r="{{ rounds }}" style="display: none;">data:;base64,{{ encrypted }}</pre>
 
-    <script>
+    <script type="module">
         const subtle = window.crypto.subtle || window.crypto.webkitSubtle
 
-        document.addEventListener("DOMContentLoaded", async function () {
-            const pwd = document.getElementById('pwd')
-            const msg = document.getElementById('msg')
+        const dialog = document.getElementById('dialog')
+        const hashedPassword = sessionStorage.hashedPassword
+        // If we always open immediately, there will be a blink
+        // on pages that will auto-decrypt. By checking if there
+        // is a saved password first, we avoid the blink.
+        if (!hashedPassword) {
+            dialog.show()
+        }
+      
+        const msg = document.getElementById('msg')
+        const pwd = document.getElementById('pwd')
 
+        const form = document.getElementById('form')
+        form.addEventListener('submit', (e) => {
+            e.preventDefault()
+            decrypt()
+        })
+
+        document.addEventListener("DOMContentLoaded", async function () {
             if (!subtle) {
                 msg.innerText = 'Your browser does not support Web Cryptography.'
                 pwd.disabled = true
+                dialog.show()
                 return
             }
 
@@ -51,36 +67,34 @@
                 history.replaceState(null, '', parts[0])
             }
 
-            // Attempt to decrypt with saved password.
-            if (sessionStorage.hashedPassword) {
-                const payloadBundle = await fetchPayload()
-                if (!payloadBundle) {
-                    msg.innerText = '❌ Invalid payload.'
-                    msg.ariaBusy = 'false'
-                    console.error('Invalid payload')
-                    return
-                }
-                const { salt, nonce, cipherText } = payloadBundle
-
-                const msg = document.getElementById('msg')
-                const key = JSON.parse(sessionStorage.hashedPassword)
-                const derivedKey = await subtle.importKey('jwk', key, 'AES-GCM', true, ['decrypt'])
+            // Attempt to decrypt with saved password
+            if (hashedPassword) {
                 try {
+                    const payloadBundle = await fetchPayload()
+                    if (!payloadBundle) {
+                        msg.innerText = '❌ Invalid payload.'
+                        console.error('Invalid payload')
+                        dialog.show()
+                        return
+                    }
+                    const { nonce, cipherText } = payloadBundle
+
+                    const key = JSON.parse(hashedPassword)
+                    const derivedKey = await subtle.importKey('jwk', key, { name: 'AES-GCM' }, true, ['decrypt'])
                     const decrypted = await subtle.decrypt({ name: 'AES-GCM', iv: nonce }, derivedKey, cipherText)
                     const decoded = new TextDecoder().decode(decrypted)
                     console.log("Decrypted with saved password")
                     finish(decoded, 0)
                 } catch (e) {
-                    console.error("Failed to decrypt with saved password")
-                    console.error(e)
+                    console.error("Failed to decrypt with saved password", e)
                     sessionStorage.removeItem('hashedPassword')
+                    msg.innerText = '🗝️ This page is password protected.'
+                    dialog.show()
                 }
             }
         })
 
         async function decrypt() {
-            const msg = document.getElementById('msg')
-            const pwd = document.getElementById('pwd')
             const submit = document.getElementById('submit')
             const payload = document.getElementById('payload')
 
@@ -126,8 +140,8 @@
                     derivedKey,
                     cipherText
                 )
-
                 const decoded = new TextDecoder().decode(decrypted)
+
                 console.log("Decrypted with given password")
                 sessionStorage.hashedPassword = JSON.stringify(await subtle.exportKey('jwk', derivedKey))
 
@@ -136,8 +150,7 @@
                 msg.innerText = '❌ Wrong password.'
                 msg.ariaBusy = 'false'
                 submit.disabled = false
-                console.error('Wrong password')
-                console.error(e)
+                console.error('Wrong password', e)
                 return
             }
         }
@@ -162,8 +175,12 @@
             msg.innerText = '✅ Decrypted.'
             msg.ariaBusy = 'false'
             setTimeout(function () {
+                // Re-inject the password into the new document as an inline script.
+                // document.write() clears sessionStorage in some browsers, so we
+                // restore it immediately as the new document begins parsing.
+                const persistScript = `<script>sessionStorage.hashedPassword=${JSON.stringify(sessionStorage.hashedPassword)}<\/script>`
                 document.open()
-                document.write(decrypted)
+                document.write(persistScript + decrypted)
                 document.close()
             }, timeout || 0)
         }
