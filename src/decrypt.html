@@ -35,7 +35,37 @@
         const subtle = window.crypto.subtle || window.crypto.webkitSubtle
 
         const dialog = document.getElementById('dialog')
-        const hashedPassword = sessionStorage.hashedPassword
+        const STORAGE_KEY = 'hashedPassword'
+        const EXPIRATION_MS = 7 * 24 * 60 * 60 * 1000
+
+        function savePassword(keyData) {
+            const data = {
+                key: keyData,
+                expires: Date.now() + EXPIRATION_MS
+            }
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+        }
+
+        function loadPassword() {
+            try {
+                const stored = localStorage.getItem(STORAGE_KEY)
+                if (!stored) return null
+                const data = JSON.parse(stored)
+                if (Date.now() > data.expires) {
+                    localStorage.removeItem(STORAGE_KEY)
+                    return null
+                }
+                return JSON.stringify(data.key)
+            } catch {
+                return null
+            }
+        }
+
+        function clearPassword() {
+            localStorage.removeItem(STORAGE_KEY)
+        }
+
+        const hashedPassword = loadPassword()
         // If we always open immediately, there will be a blink
         // on pages that will auto-decrypt. By checking if there
         // is a saved password first, we avoid the blink.
@@ -87,7 +117,7 @@
                     finish(decoded, 0)
                 } catch (e) {
                     console.error("Failed to decrypt with saved password", e)
-                    sessionStorage.removeItem('hashedPassword')
+                    clearPassword()
                     msg.innerText = '🗝️ This page is password protected.'
                     dialog.show()
                 }
@@ -143,7 +173,7 @@
                 const decoded = new TextDecoder().decode(decrypted)
 
                 console.log("Decrypted with given password")
-                sessionStorage.hashedPassword = JSON.stringify(await subtle.exportKey('jwk', derivedKey))
+                savePassword(await subtle.exportKey('jwk', derivedKey))
 
                 finish(decoded, 500)
             } catch (e) {
@@ -176,9 +206,10 @@
             msg.ariaBusy = 'false'
             setTimeout(function () {
                 // Re-inject the password into the new document as an inline script.
-                // document.write() clears sessionStorage in some browsers, so we
-                // restore it immediately as the new document begins parsing.
-                const persistScript = `<script>sessionStorage.hashedPassword=${JSON.stringify(sessionStorage.hashedPassword)}<\/script>`
+                // document.write() clears page state in some browsers, so we
+                // restore the password immediately as the new document begins parsing.
+                const storedPassword = localStorage.getItem(STORAGE_KEY)
+                const persistScript = storedPassword ? `<script>localStorage.setItem(${JSON.stringify(STORAGE_KEY)},${JSON.stringify(storedPassword)})<\/script>` : ''
                 document.open()
                 document.write(persistScript + decrypted)
                 document.close()
