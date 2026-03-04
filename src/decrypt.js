@@ -1,23 +1,9 @@
 const data = `data:;base64,{{ encrypted }}`
-const STORAGE_KEY = 'hashedPassword'
+{{ storage-utils }}
 
-function loadPassword() {
-    try {
-        const stored = localStorage.getItem(STORAGE_KEY)
-        if (!stored) return null
-        const data = JSON.parse(stored)
-        if (Date.now() > data.expires) {
-            localStorage.removeItem(STORAGE_KEY)
-            return null
-        }
-        return JSON.stringify(data.key)
-    } catch {
-        return null
-    }
-}
 
 async function decrypt(nonce, cipherText) {
-    const subtle = window.crypto.subtle || window.crypto.webkitSubtle
+const subtle = window.crypto.subtle || window.crypto.webkitSubtle
 
     const hashedPassword = loadPassword()
     if (!hashedPassword) {
