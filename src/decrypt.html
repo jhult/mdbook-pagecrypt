@@ -83,12 +83,6 @@
         })
 
         document.addEventListener("DOMContentLoaded", async function () {
-            if (!subtle) {
-                msg.innerText = 'Your browser does not support Web Cryptography.'
-                pwd.disabled = true
-                dialog.show()
-                return
-            }
 
             // Allow passwords to be automatically provided via the URI Fragment.
             if (location.hash && location.hash.startsWith('#pwd=')) {

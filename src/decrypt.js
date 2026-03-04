@@ -18,9 +18,7 @@ function loadPassword() {
 
 async function decrypt(nonce, cipherText) {
     const subtle = window.crypto.subtle || window.crypto.webkitSubtle
-    if (!subtle) {
-        throw Error('Your browser does not support Web Cryptography.')
-    }
+
     const hashedPassword = loadPassword()
     if (!hashedPassword) {
         throw Error('Password expired or not found. Please refresh the page.')
