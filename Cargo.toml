@@ -14,8 +14,8 @@ anyhow = "1.0.102"
 base64 = "0.22.1"
 getrandom = "0.4.1"
 log = "0.4.29"
-mdbook-html = "0.5.2"
-mdbook-renderer = "0.5.2"
+mdbook-html = { git = "https://github.com/jhult/mdBook", branch = "master" }
+mdbook-renderer = { git = "https://github.com/jhult/mdBook", branch = "master" }
 pbkdf2 = "0.12.2"
 rand = "0.10.0"
 serde = { version = "1.0.228", features = ["derive"] }
